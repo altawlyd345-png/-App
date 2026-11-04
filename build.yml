@@ -1,0 +1,23 @@
+name: Build APKs
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        app: [sender, receiver]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare
+        run: |
+          cp shared/protocol.py ${{ matrix.app }}/protocol.py
+          curl -L -o ${{ matrix.app }}/fonts/NotoNaskhArabic-Regular.ttf \
+            https://github.com/notofonts/notofonts.github.io/raw/main/fonts/NotoNaskhArabic/hinted/ttf/NotoNaskhArabic-Regular.ttf || true
+      - uses: ArtemSBulgakov/buildozer-action@v1
+        with:
+          workdir: ${{ matrix.app }}
+          buildozer_version: stable
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-apk
+          path: ${{ matrix.app }}/bin/*.apk
