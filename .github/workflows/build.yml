@@ -1,24 +1,58 @@
 name: Build APKs
 on: [push, workflow_dispatch]
+
 jobs:
   build:
     runs-on: ubuntu-22.04
     strategy:
+      fail-fast: false
       matrix:
         app: [sender, receiver]
     steps:
       - uses: actions/checkout@v4
-      - name: Prepare
+
+      - name: Prepare shared files and font
         run: |
-          cp shared/protocol.py ${{ matrix.app }}/protocol.py
-          curl -L -o ${{ matrix.app }}/fonts/NotoNaskhArabic-Regular.ttf \
+          mkdir -p ${{ matrix.app }}/fonts
+          cp shared/*.py ${{ matrix.app }}/
+          curl -L --fail -o ${{ matrix.app }}/fonts/NotoNaskhArabic-Regular.ttf \
             https://github.com/notofonts/notofonts.github.io/raw/main/fonts/NotoNaskhArabic/hinted/ttf/NotoNaskhArabic-Regular.ttf || true
-      - uses: ArtemSBulgakov/buildozer-action@v1
+
+      - uses: actions/setup-python@v5
         with:
-          workdir: ${{ matrix.app }}
-          buildozer_version: stable
+          python-version: "3.10"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git zip unzip autoconf automake libtool pkg-config \
+            libffi-dev libssl-dev zlib1g-dev libltdl-dev cmake \
+            build-essential ccache
+
+      - name: Install buildozer
+        run: |
+          python -m pip install --upgrade pip
+          pip install "cython<3" buildozer virtualenv
+
+      - name: Cache buildozer
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            ${{ matrix.app }}/.buildozer
+          key: buildozer-${{ matrix.app }}-${{ hashFiles(format('{0}/buildozer.spec', matrix.app)) }}
+
+      - name: Build APK
+        working-directory: ${{ matrix.app }}
+        run: buildozer -v android debug
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.app }}-apk
           path: ${{ matrix.app }}/bin/*.apk
-          
