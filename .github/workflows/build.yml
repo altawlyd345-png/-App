@@ -21,3 +21,4 @@ jobs:
         with:
           name: ${{ matrix.app }}-apk
           path: ${{ matrix.app }}/bin/*.apk
+          
